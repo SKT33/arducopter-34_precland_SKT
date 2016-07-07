@@ -268,10 +268,11 @@ private:
 
     struct {
         bool use_gps        : 1;    // land mode uses GPS (as opposed to purely pilot controlled)
-        bool pause          : 1;    // land mode pauses for a few seconds before beginning to descend
+        bool use_precision  : 1;    // land mode uses precision land (i.e. IRLock, companion computer) to hit target
+		bool pause          : 1;    // land mode pauses for a few seconds before beginning to descend
         bool repo_active    : 1;    // pilot is providing horizontal position input
         uint32_t start_ms;
-    } land_state = {false, false, false, 0};
+    } land_state = {false, false, false, false, 0};
 
 	RCMapper rcmap;
 
@@ -807,8 +808,12 @@ private:
     bool guided_limit_check();
     bool land_init(bool ignore_checks);
     void land_run();
+	bool land_gps_init();
     void land_gps_run();
+	void land_nogps_init();
     void land_nogps_run();
+	bool land_precision_init();
+    void land_precision_run();
     float get_land_descent_speed();
     void land_do_not_use_GPS();
     void set_mode_land_with_pause(mode_reason_t reason);

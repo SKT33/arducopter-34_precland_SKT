@@ -5,27 +5,18 @@
 // land_init - initialise land controller
 bool Copter::land_init(bool ignore_checks)
 {
-    // check if we have GPS and decide which LAND we're going to do
-    land_state.use_gps = position_ok();
-    if (land_state.use_gps) {
-        // set target to stopping point
-        Vector3f stopping_point;
-        wp_nav.get_loiter_stopping_point_xy(stopping_point);
-        wp_nav.init_loiter_target(stopping_point);
+    // try to use precision landing
+    if (!land_precision_init()) {
+        // next try gps base land
+        if (!land_gps_init()) {
+            // finally use pilot controlled land
+            land_nogps_init();
+        }
     }
 
-    // initialize vertical speeds and leash lengths
-    pos_control.set_speed_z(wp_nav.get_speed_down(), wp_nav.get_speed_up());
-    pos_control.set_accel_z(wp_nav.get_accel_z());
-
-    // initialise altitude target to stopping point
-    pos_control.set_target_to_stopping_point_z();
-
+    // set other state variables
     land_state.start_ms = millis();
-
     land_state.pause = false;
-
-    // reset flag indicating if pilot has applied roll or pitch inputs during landing
     land_state.repo_active = false;
 
     return true;
@@ -36,10 +27,43 @@ bool Copter::land_init(bool ignore_checks)
 void Copter::land_run()
 {
     if (land_state.use_gps) {
+#if PRECISION_LANDING == ENABLED
+        if (land_state.use_precision) {
+            land_precision_run();
+        } else {
+            land_gps_run();
+        }
+#else
         land_gps_run();
+#endif
     }else{
         land_nogps_run();
     }
+}
+
+// land_gps_init - initialise gps-based land controller
+bool Copter::land_gps_init()
+{
+    // check if we have GPS and decide which LAND we're going to do
+    land_state.use_gps = position_ok();
+
+    if (!land_state.use_gps) {
+        return false;
+    }
+
+    // set target to stopping point
+    Vector3f stopping_point;
+    wp_nav.get_loiter_stopping_point_xy(stopping_point);
+    wp_nav.init_loiter_target(stopping_point);
+
+    // initialize vertical speeds and leash lengths
+    pos_control.set_speed_z(wp_nav.get_speed_down(), wp_nav.get_speed_up());
+    pos_control.set_accel_z(wp_nav.get_accel_z());
+
+    // initialise altitude target to stopping point
+    pos_control.set_target_to_stopping_point_z();
+
+    return true;
 }
 
 // land_run - runs the land controller
@@ -116,13 +140,6 @@ void Copter::land_gps_run()
     // process roll, pitch inputs
     wp_nav.set_pilot_desired_acceleration(roll_control, pitch_control);
 
-#if PRECISION_LANDING == ENABLED
-    // run precision landing
-    if (!land_state.repo_active) {
-        wp_nav.shift_loiter_target(precland.get_target_shift(wp_nav.get_loiter_target()));
-    }
-#endif
-
     // run loiter controller
     wp_nav.update_loiter(ekfGndSpdLimit, ekfNavVelGainScaler);
 
@@ -145,6 +162,20 @@ void Copter::land_gps_run()
     pos_control.set_alt_target_from_climb_rate(cmb_rate, G_Dt, true);
     pos_control.update_z_controller();
 }
+
+// land_nogps_init - initialise pilot controlled land controller
+void Copter::land_nogps_init()
+{
+    land_state.use_gps = false;
+
+    // initialize vertical speeds and leash lengths
+    pos_control.set_speed_z(wp_nav.get_speed_down(), wp_nav.get_speed_up());
+    pos_control.set_accel_z(wp_nav.get_accel_z());
+
+    // initialise altitude target to stopping point
+    pos_control.set_target_to_stopping_point_z();
+}
+
 
 // land_nogps_run - runs the land controller
 //      pilot controls roll and pitch angles
@@ -221,6 +252,84 @@ void Copter::land_nogps_run()
     // call position controller
     pos_control.set_alt_target_from_climb_rate(cmb_rate, G_Dt, true);
     pos_control.update_z_controller();
+}
+
+// land_init - initialise land controller using precision landing
+bool Copter::land_precision_init()
+{
+#if PRECISION_LANDING == ENABLED
+    land_state.use_gps = position_ok();
+    // check if precision landing available
+    land_state.use_precision = land_state.use_gps && precland.enabled() && precland.healthy();
+    if (!land_state.use_precision) {
+        return false;
+    }
+
+    // initialize vertical speeds and leash lengths
+    pos_control.set_speed_z(-g.pilot_velocity_z_max, g.pilot_velocity_z_max);
+    pos_control.set_accel_z(g.pilot_accel_z);
+
+    // initialise velocity controller
+    pos_control.init_vel_controller_xyz();
+
+    // initialise precland desired vel
+    precland.set_desired_velocity(inertial_nav.get_velocity());
+
+    return true;
+#else
+    land_state.use_precision = false;
+    return false;
+#endif
+}
+
+// land_run - runs the land controller
+//      horizontal position controlled with loiter controller and precision landing
+void Copter::land_precision_run()
+{
+    // if not auto armed or motors not enabled set throttle to zero and exit immediately
+    if (!ap.auto_armed || !motors.get_interlock() || ap.land_complete) {
+        // initialise velocity controller
+        pos_control.init_vel_controller_xyz();
+#if FRAME_CONFIG == HELI_FRAME  // Helicopters always stabilize roll/pitch/yaw
+        // call attitude controller
+        attitude_control.angle_ef_roll_pitch_rate_ef_yaw_smooth(0, 0, 0, get_smoothing_gain());
+        attitude_control.set_throttle_out(0,false,g.throttle_filt);
+#else   // multicopters do not stabilize roll/pitch/yaw when disarmed
+        attitude_control.set_throttle_out_unstabilized(0,true,g.throttle_filt);
+#endif
+        return;
+    }
+
+    // process pilot's yaw input
+    float target_yaw_rate = 0.0f;
+    if (!failsafe.radio) {
+        // get pilot's desired yaw rate
+        target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->control_in);
+        if (!is_zero(target_yaw_rate)) {
+            set_auto_yaw_mode(AUTO_YAW_HOLD);
+        }
+    }
+
+    // set desired velocity
+    Vector3f desvel = precland.calc_desired_velocity(g.land_speed);
+    pos_control.set_desired_velocity(desvel);
+
+    // call velocity controller which includes z axis controller
+    pos_control.update_vel_controller_xyz(ekfNavVelGainScaler);
+
+    // call attitude controller
+    // roll & pitch from waypoint controller, yaw rate from pilot
+    attitude_control.angle_ef_roll_pitch_rate_ef_yaw(pos_control.get_roll(), pos_control.get_pitch(), target_yaw_rate);
+
+    // any pilot roll input input switches out of precision landing to gps or pilot controlled land on next iteration
+    if (!failsafe.radio && g.land_repositioning) {
+        if ((channel_roll->control_in != 0) || (channel_pitch->control_in != 0)) {
+            land_state.use_precision = false;
+            if (!land_gps_init()) {
+                land_nogps_init();
+            }
+        }
+    }
 }
 
 // get_land_descent_speed - high level landing logic
