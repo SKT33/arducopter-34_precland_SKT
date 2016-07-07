@@ -240,7 +240,6 @@ private:
             enum HomeState home_state   : 2; // 18,19   // home status (unset, set, locked)
             uint8_t using_interlock     : 1; // 20      // aux switch motor interlock function is in use
             uint8_t motor_emergency_stop: 1; // 21      // motor estop switch, shuts off motors when enabled
-            uint8_t land_repo_active    : 1; // 22      // true if the pilot is overriding the landing position
         };
         uint32_t value;
     } ap;
@@ -267,7 +266,14 @@ private:
         uint32_t start_ms;
     } takeoff_state;
 
-    RCMapper rcmap;
+    struct {
+        bool use_gps        : 1;    // land mode uses GPS (as opposed to purely pilot controlled)
+        bool pause          : 1;    // land mode pauses for a few seconds before beginning to descend
+        bool repo_active    : 1;    // pilot is providing horizontal position input
+        uint32_t start_ms;
+    } land_state = {false, false, false, 0};
+
+	RCMapper rcmap;
 
     // board specific config
     AP_BoardConfig BoardConfig;

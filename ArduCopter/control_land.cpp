@@ -2,17 +2,12 @@
 
 #include "Copter.h"
 
-static bool land_with_gps;
-
-static uint32_t land_start_time;
-static bool land_pause;
-
 // land_init - initialise land controller
 bool Copter::land_init(bool ignore_checks)
 {
     // check if we have GPS and decide which LAND we're going to do
-    land_with_gps = position_ok();
-    if (land_with_gps) {
+    land_state.use_gps = position_ok();
+    if (land_state.use_gps) {
         // set target to stopping point
         Vector3f stopping_point;
         wp_nav.get_loiter_stopping_point_xy(stopping_point);
@@ -26,12 +21,12 @@ bool Copter::land_init(bool ignore_checks)
     // initialise altitude target to stopping point
     pos_control.set_target_to_stopping_point_z();
 
-    land_start_time = millis();
+    land_state.start_ms = millis();
 
-    land_pause = false;
+    land_state.pause = false;
 
     // reset flag indicating if pilot has applied roll or pitch inputs during landing
-    ap.land_repo_active = false;
+    land_state.repo_active = false;
 
     return true;
 }
@@ -40,7 +35,7 @@ bool Copter::land_init(bool ignore_checks)
 // should be called at 100hz or more
 void Copter::land_run()
 {
-    if (land_with_gps) {
+    if (land_state.use_gps) {
         land_gps_run();
     }else{
         land_nogps_run();
@@ -107,7 +102,7 @@ void Copter::land_gps_run()
 
             // record if pilot has overriden roll or pitch
             if (roll_control != 0 || pitch_control != 0) {
-                ap.land_repo_active = true;
+                land_state.repo_active = true;
             }
         }
 
@@ -123,7 +118,7 @@ void Copter::land_gps_run()
 
 #if PRECISION_LANDING == ENABLED
     // run precision landing
-    if (!ap.land_repo_active) {
+    if (!land_state.repo_active) {
         wp_nav.shift_loiter_target(precland.get_target_shift(wp_nav.get_loiter_target()));
     }
 #endif
@@ -136,10 +131,10 @@ void Copter::land_gps_run()
 
     // pause 4 seconds before beginning land descent
     float cmb_rate;
-    if(land_pause && millis()-land_start_time < 4000) {
+    if (land_state.pause && (millis()-land_state.start_ms < LAND_WITH_DELAY_MS)) {
         cmb_rate = 0;
     } else {
-        land_pause = false;
+        land_state.pause = false;
         cmb_rate = get_land_descent_speed();
     }
 
@@ -213,10 +208,10 @@ void Copter::land_nogps_run()
 
     // pause 4 seconds before beginning land descent
     float cmb_rate;
-    if(land_pause && millis()-land_start_time < LAND_WITH_DELAY_MS) {
+    if (land_state.pause && (millis()-land_state.start_ms < LAND_WITH_DELAY_MS)) {
         cmb_rate = 0;
     } else {
-        land_pause = false;
+        land_state.pause = false;
         cmb_rate = get_land_descent_speed();
     }
 
@@ -268,7 +263,7 @@ float Copter::get_land_descent_speed()
 //  has no effect if we are not already in LAND mode
 void Copter::land_do_not_use_GPS()
 {
-    land_with_gps = false;
+    land_state.use_gps = false;
 }
 
 // set_mode_land_with_pause - sets mode to LAND and triggers 4 second delay before descent starts
@@ -276,7 +271,7 @@ void Copter::land_do_not_use_GPS()
 void Copter::set_mode_land_with_pause(mode_reason_t reason)
 {
     set_mode(LAND, reason);
-    land_pause = true;
+    land_state.pause = true;
 
     // alert pilot to mode change
     AP_Notify::events.failsafe_mode_change = 1;
@@ -284,5 +279,5 @@ void Copter::set_mode_land_with_pause(mode_reason_t reason)
 
 // landing_with_GPS - returns true if vehicle is landing using GPS
 bool Copter::landing_with_GPS() {
-    return (control_mode == LAND && land_with_gps);
+    return (control_mode == LAND && land_state.use_gps);
 }
