@@ -334,10 +334,10 @@ private:
     int32_t home_distance;
     // distance between plane and next waypoint in cm.
     uint32_t wp_distance;
-    uint8_t land_state;              // records state of land (flying to location, descending)
 
     // Auto
     AutoMode auto_mode;   // controls which auto controller is run
+	AutoLandState auto_land_state;
 
     // Guided
     GuidedMode guided_mode;  // controls which controller is run (pos or vel)
