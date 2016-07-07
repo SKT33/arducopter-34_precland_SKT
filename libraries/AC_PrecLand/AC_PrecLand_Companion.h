@@ -1,5 +1,6 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-#pragma once
+#ifndef __AC_PRECLAND_COMPANION_H__
+#define __AC_PRECLAND_COMPANION_H__
 
 #include <AP_Common/AP_Common.h>
 #include <AP_Math/AP_Math.h>
@@ -29,8 +30,10 @@ public:
     // get_angle_to_target - returns angles (in radians) to target
     //  returns true if angles are available, false if not (i.e. no target)
     //  x_angle_rad : roll direction, positive = target is to right (looking down)
-    //  y_angle_rad : pitch direction, postiive = target is forward (looking down)
-    bool get_angle_to_target(float &x_angle_rad, float &y_angle_rad);
+    //  y_angle_rad : pitch direction, positive = target is forward (looking down)
+    //  size_rad : apparently size of target in radians
+    //  capture_time_ms : system time in milliseconds that angles were captured
+    bool get_angle_to_target(float &x_angle_rad, float &y_angle_rad, float &size_rad, uint32_t &capture_time_ms);
 
     // handle_msg - parses a mavlink message from the companion computer
     void handle_msg(mavlink_message_t* msg);
@@ -40,7 +43,10 @@ private:
     // output from camera
     MAV_FRAME           _frame;                 // what frame of reference is our sensor reporting in?
     Vector2f            _angle_to_target;       // last angle to target
+    float               _size_rad;              // apparent size of target in radians
     float               _distance_to_target;    // distance from the camera to target in meters
-    uint64_t            _timestamp_us;          // timestamp when the image was captured(synced via UAVCAN)
+    uint64_t            _timestamp_us;          // timestamp when the image was captured according to sender
+    uint32_t            _capture_time_ms;       // timestamp in milliseconds this driver received angles in milliseconds
     bool                _new_estimate;          // true if new data from the camera has been received
 };
+#endif	// __AC_PRECLAND_COMPANION_H__
