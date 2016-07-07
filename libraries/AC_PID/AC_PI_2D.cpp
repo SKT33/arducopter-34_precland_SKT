@@ -67,6 +67,19 @@ void AC_PI_2D::filt_hz(float hz)
     calc_filt_alpha();
 }
 
+// set integrator
+void AC_PI_2D::set_integrator(const Vector2f &i)
+{
+    // adjust length to imax
+    float len = i.length();
+    if ((len > 0.0f) && (len > imax())) {
+        _integrator.x = i.x / len * imax();
+        _integrator.y = i.y / len * imax();
+    } else {
+        _integrator = i;
+    }
+}
+
 // set_input - set input to PID controller
 //  input is filtered before the PID controllers are run
 //  this should be called before any other calls to get_p, get_i or get_d
