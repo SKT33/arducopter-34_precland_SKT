@@ -1,5 +1,6 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-#pragma once
+#ifndef __AC_PRECLAND_BACKEND_H__
+#define __AC_PRECLAND_BACKEND_H__
 
 #include <AP_Common/AP_Common.h>
 #include <AP_Math/AP_Math.h>
@@ -31,8 +32,10 @@ public:
     // get_angle_to_target - returns angles (in radians) to target
     //  returns true if angles are available, false if not (i.e. no target)
     //  x_angle_rad : roll direction, positive = target is to right (looking down)
-    //  y_angle_rad : pitch direction, postiive = target is forward (looking down)
-    virtual bool get_angle_to_target(float &x_angle_rad, float &y_angle_rad) = 0;
+    //  y_angle_rad : pitch direction, positive = target is forward (looking down)
+    //  size_rad : target's size in radians
+    //  capture_time_ms : system time in milliseconds that angles were captured
+    virtual bool get_angle_to_target(float &x_angle_rad, float &y_angle_rad, float &size_rad, uint32_t &capture_time_ms) = 0;
 
     // handle_msg - parses a mavlink message from the companion computer
     virtual void handle_msg(mavlink_message_t* msg) = 0;
@@ -42,3 +45,6 @@ protected:
     const AC_PrecLand&  _frontend;          // reference to precision landing front end
     AC_PrecLand::precland_state &_state;    // reference to this instances state
 };
+
+
+#endif	// __AC_PRECLAND_BACKEND_H__
