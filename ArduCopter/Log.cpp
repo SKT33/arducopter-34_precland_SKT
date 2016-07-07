@@ -649,8 +649,9 @@ struct PACKED log_Precland {
     uint8_t healthy;
     float bf_angle_x;
     float bf_angle_y;
-    float ef_angle_x;
-    float ef_angle_y;
+    float ef_vec_x;
+    float ef_vec_y;
+    float ef_vec_z;
     float des_vel_x;
     float des_vel_y;
     float des_vel_z;
@@ -666,7 +667,7 @@ void Copter::Log_Write_Precland()
     }
 
     const Vector2f &bf_angle = precland.last_bf_angle_to_target();
-    const Vector2f &ef_angle = precland.last_ef_angle_to_target();
+    const Vector3f &ef_vec = precland.last_vec_to_target_ef();
     const Vector3f &des_vel = precland.get_last_desired_velocity();
     struct log_Precland pkt = {
         LOG_PACKET_HEADER_INIT(LOG_PRECLAND_MSG),
@@ -674,8 +675,9 @@ void Copter::Log_Write_Precland()
         healthy         : precland.healthy(),
         bf_angle_x      : degrees(bf_angle.x),
         bf_angle_y      : degrees(bf_angle.y),
-        ef_angle_x      : degrees(ef_angle.x),
-        ef_angle_y      : degrees(ef_angle.y),
+        ef_vec_x        : ef_vec.x,
+        ef_vec_y        : ef_vec.y,
+        ef_vec_z        : ef_vec.z,
         des_vel_x       : des_vel.x,
         des_vel_y       : des_vel.y,
         des_vel_z       : des_vel.z
@@ -751,7 +753,7 @@ const struct LogStructure Copter::log_structure[] = {
     { LOG_HELI_MSG, sizeof(log_Heli),
       "HELI",  "Qff",         "TimeUS,DRRPM,ERRPM" },
     { LOG_PRECLAND_MSG, sizeof(log_Precland),
-      "PL",    "QBfffffff",    "TimeUS,Heal,bX,bY,eX,eY,dvX,dvY,dvZ" },
+      "PL",    "QBffffffff",    "TimeUS,Heal,bX,bY,eX,eY,eZ,dvX,dvY,dvZ" },
     { LOG_GUIDEDTARGET_MSG, sizeof(log_GuidedTarget),
       "GUID",  "QBffffff",    "TimeUS,Type,pX,pY,pZ,vX,vY,vZ" },
 };
