@@ -63,6 +63,7 @@ private:
 };
 
 // Typedef for convenience - add more as needed
+typedef AP_Buffer<float,3> AP_BufferFloat_Size3;
 typedef AP_Buffer<float,5> AP_BufferFloat_Size5;
 typedef AP_Buffer<float,15> AP_BufferFloat_Size15;
 
