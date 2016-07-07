@@ -31,6 +31,10 @@ public:
     bool update();
     // IRLock is hard-mounted to the frame of the vehicle, so it will always be in body-frame
     MAV_FRAME get_frame_of_reference() { return MAV_FRAME_BODY_NED; }
+	
+	
+    // returns expected time period in seconds between samples (50hz for IRLock)
+    float get_delta_time() const { return 0.02f; }
 
     // get_angle_to_target - returns body frame angles (in radians) to target
     //  returns true if angles are available, false if not (i.e. no target)

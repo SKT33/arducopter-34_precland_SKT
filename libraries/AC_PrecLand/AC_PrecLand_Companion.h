@@ -26,6 +26,9 @@ public:
     bool update();
     // what frame of reference is our sensor reporting in?
     MAV_FRAME get_frame_of_reference();
+	
+	// returns expected time period in seconds between samples (5hz for companion computers)
+    float get_delta_time() const { return 0.2f; }
 
     // get_angle_to_target - returns angles (in radians) to target
     //  returns true if angles are available, false if not (i.e. no target)
