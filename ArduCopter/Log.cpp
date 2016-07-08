@@ -652,6 +652,8 @@ struct PACKED log_Precland {
     float ef_vec_x;
     float ef_vec_y;
     float ef_vec_z;
+	float size_rad;
+    float distance;
     float des_vel_x;
     float des_vel_y;
     float des_vel_z;
@@ -678,6 +680,8 @@ void Copter::Log_Write_Precland()
         ef_vec_x        : ef_vec.x,
         ef_vec_y        : ef_vec.y,
         ef_vec_z        : ef_vec.z,
+		size_rad        : precland.last_size_rad(),
+        distance        : precland.last_distance_est(),
         des_vel_x       : des_vel.x,
         des_vel_y       : des_vel.y,
         des_vel_z       : des_vel.z
@@ -753,7 +757,7 @@ const struct LogStructure Copter::log_structure[] = {
     { LOG_HELI_MSG, sizeof(log_Heli),
       "HELI",  "Qff",         "TimeUS,DRRPM,ERRPM" },
     { LOG_PRECLAND_MSG, sizeof(log_Precland),
-      "PL",    "QBffffffff",    "TimeUS,Heal,bX,bY,eX,eY,eZ,dvX,dvY,dvZ" },
+      "PL",    "QBffffffffff",    "TimeUS,Heal,bX,bY,eX,eY,eZ,sz,dist,dvX,dvY,dvZ" },
     { LOG_GUIDEDTARGET_MSG, sizeof(log_GuidedTarget),
       "GUID",  "QBffffff",    "TimeUS,Type,pX,pY,pZ,vX,vY,vZ" },
 };
