@@ -118,7 +118,7 @@ void AC_PrecLand::init()
 }
 
 // update - give chance to driver to get updates from sensor
-void AC_PrecLand::update(float alt_above_terrain_cm)
+bool AC_PrecLand::update(float alt_above_terrain_cm)
 {
     bool updated = false;
 
